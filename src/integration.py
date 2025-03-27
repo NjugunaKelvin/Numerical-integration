@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import ttk, messagebox
-import ttkbootstrap as tb  # Modern theme for Tkinter
+import ttkbootstrap as tb
 from scipy.integrate import quad
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -23,7 +23,7 @@ def trapezoidal_rule(f, a, b, n):
 
 def simpsons_rule(f, a, b, n):
     if n % 2 == 1:
-        n += 1
+        n += 1  # Ensure even intervals for Simpson's Rule
     x = np.linspace(a, b, n+1)
     y = f(x)
     h = (b - a) / n
@@ -36,21 +36,16 @@ def integrate():
         a = float(lower_limit_entry.get())
         b = float(upper_limit_entry.get())
         n = int(intervals_entry.get())
-        
-        if a >= b:
-            messagebox.showerror("Error", "Lower limit must be less than upper limit.")
+        if a >= b or n <= 0:
+            messagebox.showerror("Error", "Invalid limits or intervals.")
             return
-        if n <= 0:
-            messagebox.showerror("Error", "Number of intervals must be positive.")
-            return
-        
-        def f(x):
-            return safe_eval(expr, x)
+
+        def f(x): return safe_eval(expr, x)
         
         trapz_result = trapezoidal_rule(f, a, b, n)
         simpsons_result = simpsons_rule(f, a, b, n)
         standard_result, _ = quad(f, a, b)
-        
+
         result_label.config(text=f"Trapezoidal: {trapz_result:.4f}\nSimpson's: {simpsons_result:.4f}\nStandard: {standard_result:.4f}")
         plot_function(f, a, b, expr)
     except Exception as e:
@@ -62,39 +57,51 @@ def plot_function(f, a, b, expr):
     y_vals = f(x_vals)
     
     fig, ax = plt.subplots(figsize=(5, 3))
-    ax.plot(x_vals, y_vals, label=f"$f(x) = {expr}$", color="blue")
+    line, = ax.plot(x_vals, y_vals, label=f"$f(x) = {expr}$", color="blue")
     ax.fill_between(x_vals, y_vals, alpha=0.3, color="cyan")
     ax.legend()
     ax.set_xlabel("x")
     ax.set_ylabel("f(x)")
     ax.grid()
-    
-    hover_marker, = ax.plot([], [], 'ro', markersize=5)  # Single red dot
-    hover_text = ax.text(0, 0, "", fontsize=10, color='red', bbox=dict(facecolor='white', alpha=0.5))
+
+    hover_text = ax.text(0, 0, "", fontsize=10, color="black", bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3'))
+    hover_text.set_visible(False)
     
     def on_hover(event):
-        if event.xdata is not None and event.ydata is not None:
-            hover_marker.set_data(event.xdata, event.ydata)
-            hover_text.set_text(f"({event.xdata:.2f}, {event.ydata:.2f})")
-            hover_text.set_position((event.xdata, event.ydata))
+        if event.inaxes == ax:
+            x, y = event.xdata, event.ydata
+            hover_text.set_text(f"x: {x:.2f}\ny: {y:.2f}")
+            hover_text.set_position((x, y))
+            hover_text.set_visible(True)
+            fig.canvas.draw_idle()
+        else:
+            hover_text.set_visible(False)
             fig.canvas.draw_idle()
     
     fig.canvas.mpl_connect("motion_notify_event", on_hover)
-    
+
     for widget in frame_plot.winfo_children():
         widget.destroy()
-    
     canvas = FigureCanvasTkAgg(fig, master=frame_plot)
     canvas.draw()
     canvas.get_tk_widget().pack()
 
+# Function to reset inputs
+def reset_inputs():
+    function_var.set("")
+    lower_limit_entry.delete(0, tk.END)
+    upper_limit_entry.delete(0, tk.END)
+    intervals_entry.delete(0, tk.END)
+    result_label.config(text="")
+    for widget in frame_plot.winfo_children():
+        widget.destroy()
+
 # Set up the main window
 root = tb.Window(themename="darkly")
 root.title("Numerical Integration Calculator")
-root.geometry("600x550")
+root.geometry("600x600")
 root.configure(bg="#2c3e50")
 
-# Layout
 frame_main = ttk.Frame(root, padding=20)
 frame_main.pack(pady=10)
 
@@ -123,7 +130,10 @@ intervals_entry = ttk.Entry(frame_main, width=10)
 intervals_entry.grid(row=4, column=1, pady=5)
 
 calculate_button = ttk.Button(frame_main, text="Integrate", command=integrate, bootstyle="primary")
-calculate_button.grid(row=5, column=0, columnspan=2, pady=10)
+calculate_button.grid(row=5, column=0, pady=10)
+
+reset_button = ttk.Button(frame_main, text="Compute Again", command=reset_inputs, bootstyle="secondary")
+reset_button.grid(row=5, column=1, pady=10)
 
 result_label = ttk.Label(frame_main, text="", font=("Arial", 12, "bold"))
 result_label.grid(row=6, column=0, columnspan=2, pady=10)
